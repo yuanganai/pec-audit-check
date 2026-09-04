@@ -125,7 +125,7 @@
       mergeInto(S, j.data);
       apiPost({ action: 'auditsave', data: payload(), by: by() }, function (ok2, j2) {
         syncing = false;
-        if (ok2) { if (j2 && j2.data) mergeInto(S, j2.data); S.online = true; S.dirty = false; S.lastSync = now(); saveLocal(); fire(true); flushPhotos(); }
+        if (ok2) { if (j2 && j2.data) mergeInto(S, j2.data); S.online = true; S.dirty = false; S.lastSync = now(); saveLocal(); dedupeAuto(); fire(true); flushPhotos(); }
         else { S.online = false; saveLocal(); fire(false); }
       });
     });
@@ -213,7 +213,25 @@
   function history() { return BANK.history; }
 
   /* ── 場次 / 結果 / 缺失 ── */
-  function newSession(o) { var s = { id: uid('s'), name: o.name || '', plant: o.plant || 'PH', date: o.date || today(), auditors: o.auditors || '', scope: o.scope || 'qsa,qpa', note: o.note || '', ts: now() }; S.sessions.push(s); setCur(s.id); touch(); return s; }
+  /* 同日期＋同廠別＋同名稱的場次已存在就直接沿用，不重複建立（多裝置各建一場 → 雲端合併後出現一堆同名場次的防呆） */
+  function findSame(o) { var nm = String(o.name || '').trim(), dt = o.date || today(), pl = o.plant || 'PH'; return liveSessions().filter(function (s) { return String(s.name || '').trim() === nm && (s.date || '') === dt && (s.plant || 'PH') === pl; })[0] || null; }
+  function newSession(o) {
+    var ex = findSame(o); if (ex) { setCur(ex.id); return ex; }
+    var s = { id: uid('s'), name: o.name || '', plant: o.plant || 'PH', date: o.date || today(), auditors: o.auditors || '', scope: o.scope || 'qsa,qpa', note: o.note || '', ts: now() };
+    if (o.auto) s.auto = true;
+    S.sessions.push(s); setCur(s.id); touch(); return s;
+  }
+  function sessionEmpty(s) { var R = S.results[s.id] || {}; for (var k in R) if (R[k] && R[k].r) return false; return !S.findings.some(function (f) { return f.sid === s.id && !f.del; }); }
+  /* 同步後清理：自動建立、沒填任何東西、且同日同名另有一場的預設場次 → 標記刪除 */
+  function dedupeAuto() {
+    var live = liveSessions(), changed = false;
+    live.forEach(function (s) {
+      if (!s.auto || !sessionEmpty(s)) return;
+      var other = live.filter(function (x) { return x !== s && !x.del && String(x.name || '').trim() === String(s.name || '').trim() && (x.date || '') === (s.date || '') && (x.plant || 'PH') === (s.plant || 'PH'); })[0];
+      if (other) { s.del = true; s.ts = now(); changed = true; if (curId() === s.id) setCur(other.id); }
+    });
+    if (changed) touch();
+  }
   function saveSession(s) { s.ts = now(); touch(); }
   function delSession(s) { s.del = true; s.ts = now(); touch(); }
   function result(sid, iid) { return (S.results[sid] || {})[iid] || null; }
@@ -246,10 +264,11 @@
   function init(cb) {
     loadLocal(); applyLang();
     var b = $('langBtn'); if (b) b.onclick = function () { setLang(lang() === 'en' ? 'zh' : 'en'); };
-    var s = cur();
-    if (!s && !S.sessions.length) { /* 首場預設：菲律賓廠模擬稽核 */ newSession({ name: 'PH 廣達模擬稽核 Quanta Mock Audit', plant: 'PH', auditors: by() }); }
+    /* 首場預設（菲律賓廠模擬稽核）改成「先同步雲端，雲端也沒有場次」才建，避免每台裝置各建一場 */
+    function ensureDefault() { if (!cur() && !liveSessions().length) newSession({ name: 'PH 廣達模擬稽核 Quanta Mock Audit', plant: 'PH', auditors: by(), auto: true }); }
+    if (!REMOTE || !REMOTE.url || !navigator.onLine) ensureDefault();
     cb && cb(S);
-    sync(function (ok) { cb && cb(S, ok); });
+    sync(function (ok) { dedupeAuto(); ensureDefault(); cb && cb(S, ok); });
     window.addEventListener('online', function () { sync(); });
     setInterval(function () { if (S.dirty || pendingPhotos()) sync(); }, 60000);
   }
