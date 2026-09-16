@@ -105,6 +105,17 @@ table.kt tr:hover td{background:#f6f9ff}
 .it .hist .hl em{font-style:normal;color:#777;font-size:11px}
 .it .doc{margin-top:5px;font-size:11.5px;color:#556;background:#f6f8fc;border-radius:7px;padding:5px 8px;white-space:pre-line}
 .it .doc b{color:var(--navy)}
+.it .doc.ph{background:#fff7ec;border-left:3px solid #ED7D31;max-height:170px;overflow:auto}
+.it .doc.ph b{color:#b85c14}
+.it .doc.ph small{color:#8a8f99;margin-left:4px;font-size:10.5px}
+.it .doc.ph .sc{font-style:normal;font-size:10px;font-weight:700;border-radius:9px;padding:1px 7px;margin-left:6px;vertical-align:1px}
+.it .doc.ph .sc.ok{background:#e4f3e7;color:#2c6b38}
+.it .doc.ph .sc.na{background:#eceef2;color:#6b7280}
+.it .doc.ph .sc.no{background:#fde8e8;color:#b02a2a}
+.it .doc.ph span{display:block;margin-top:3px}
+.it .doc.ph span.none{color:#b02a2a;font-style:italic}
+.it .phflag{margin-top:4px;font-size:11.5px;line-height:1.5;color:#8a2a2a;background:#fdecec;border-left:3px solid #C00000;border-radius:7px;padding:5px 8px}
+.it .phflag b{display:block;color:#C00000;margin-bottom:2px}
 .it .act{display:flex;gap:6px;margin-top:9px}
 .it .act button{flex:1;border:1.5px solid #cdd6e6;background:#fff;border-radius:9px;padding:9px 4px;font-size:14px;font-weight:800;cursor:pointer;color:#556}
 .it .act button.ok.on{background:var(--green);color:#fff;border-color:var(--green)}
